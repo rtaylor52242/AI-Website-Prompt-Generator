@@ -90,9 +90,9 @@ ${plan}
 Now, generate the single, complete prompt for Google AI Studio.
 `;
 
-export const generateWebsitePrompt = async (): Promise<string> => {
+export const generateWebsitePrompt = async (businessPlanContent: string): Promise<string> => {
   try {
-    const metaPrompt = getMetaPrompt(businessPlanText);
+    const metaPrompt = getMetaPrompt(businessPlanContent);
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",

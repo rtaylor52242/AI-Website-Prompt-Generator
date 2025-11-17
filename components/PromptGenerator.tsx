@@ -1,27 +1,63 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { generateWebsitePrompt, businessPlanText } from '../services/geminiService';
-import { ClipboardIcon, CheckIcon, SparklesIcon, LoadingIcon } from './Icons';
+import { ClipboardIcon, CheckIcon, SparklesIcon, LoadingIcon, UploadIcon } from './Icons';
 
 const PromptGenerator: React.FC = () => {
+  const [businessPlan, setBusinessPlan] = useState<string>(businessPlanText);
   const [generatedPrompt, setGeneratedPrompt] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState<boolean>(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== 'text/plain') {
+      setFileError('Invalid file type. Please upload a .txt file.');
+      setTimeout(() => setFileError(null), 3000);
+      return;
+    }
+    
+    setFileError(null);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result;
+      if (typeof text === 'string') {
+        setBusinessPlan(text);
+      }
+    };
+    reader.onerror = () => {
+      setFileError('Failed to read the file.');
+      setTimeout(() => setFileError(null), 3000);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
 
   const handleGeneratePrompt = useCallback(async () => {
+    if (!businessPlan.trim()) {
+      setError("Business plan cannot be empty. Please upload or enter a business plan.");
+      return;
+    }
     setIsLoading(true);
     setError(null);
     setGeneratedPrompt('');
     try {
-      const prompt = await generateWebsitePrompt();
+      const prompt = await generateWebsitePrompt(businessPlan);
       setGeneratedPrompt(prompt);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [businessPlan]);
 
   const handleCopyToClipboard = useCallback(() => {
     if (!generatedPrompt) return;
@@ -34,13 +70,37 @@ const PromptGenerator: React.FC = () => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Left Column: Business Plan */}
-      <div className="bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-2xl font-bold mb-4 text-slate-900 border-b pb-2">Business Plan Source</h2>
-        <p className="text-slate-600 mb-4">
-          This content is used to generate a detailed prompt for building a website with Google AI Studio.
-        </p>
-        <div className="bg-slate-50 p-4 rounded-md max-h-96 overflow-y-auto border border-slate-200">
-          <pre className="text-sm text-slate-700 whitespace-pre-wrap font-sans">{businessPlanText}</pre>
+      <div className="bg-white p-6 rounded-lg shadow-md flex flex-col">
+        <h2 className="text-2xl font-bold mb-4 text-slate-900 border-b pb-2">Your Business Plan</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-4">
+            <p className="text-slate-600 text-sm flex-grow">
+                Upload a document (.txt) or edit the content below.
+            </p>
+            <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                accept=".txt,text/plain"
+            />
+            <button
+                onClick={handleUploadClick}
+                className="flex items-center justify-center gap-2 px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                aria-label="Upload business plan file"
+            >
+                <UploadIcon className="w-5 h-5" />
+                <span>Upload File</span>
+            </button>
+        </div>
+        {fileError && <p className="text-red-500 text-xs mb-2">{fileError}</p>}
+        <div className="flex-grow">
+          <textarea
+              value={businessPlan}
+              onChange={(e) => setBusinessPlan(e.target.value)}
+              className="w-full h-full min-h-[350px] p-4 rounded-md border border-slate-300 text-sm font-sans resize-y bg-slate-50 focus:ring-blue-500 focus:outline-none focus:ring-2"
+              placeholder="Enter your business plan here..."
+              aria-label="Business Plan Text Area"
+          />
         </div>
       </div>
 
